@@ -15,6 +15,7 @@ import org.springframework.beans.factory.InitializingBean;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -41,7 +42,9 @@ public class FileTemplate implements InitializingBean, DisposableBean {
     private String collection = null;
     private boolean usingPublicUrl = true;
     private boolean loadBalance = true;
+    private boolean useDocker = false;
     private AssignFileKeyParams assignFileKeyParams = new AssignFileKeyParams();
+    private FileSource fileSource;
 
     /**
      * Constructor.
@@ -50,6 +53,16 @@ public class FileTemplate implements InitializingBean, DisposableBean {
      */
     public FileTemplate(Connection connection) {
         this.masterWrapper = new MasterWrapper(connection);
+        this.volumeWrapper = new VolumeWrapper(connection);
+        headerDateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+    }
+
+
+    public FileTemplate(FileSource fileSource) {
+        Connection connection = fileSource.getConnection();
+        this.useDocker = fileSource.useDocker();
+        this.fileSource = fileSource;
+        this.masterWrapper = new MasterWrapper(connection, fileSource);
         this.volumeWrapper = new VolumeWrapper(connection);
         headerDateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
     }
@@ -381,6 +394,10 @@ public class FileTemplate implements InitializingBean, DisposableBean {
 
 
     private String getTargetUrl(String fileId) throws IOException {
+        if (useDocker) {
+           return "http://" + this.fileSource.getHost() + ":" + new URL(getTargetLocation(fileId).getPublicUrl()).getPort();
+        }
+
         if (usingPublicUrl) {
             return getTargetLocation(fileId).getPublicUrl();
         } else {

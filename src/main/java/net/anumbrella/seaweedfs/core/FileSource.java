@@ -29,6 +29,8 @@ public class FileSource implements InitializingBean, DisposableBean {
     private HttpCacheStorage fileStreamCacheStorage = null;
     volatile private boolean startup = false;
 
+    private boolean useDocker = false;
+
     private Connection connection;
 
 
@@ -40,6 +42,11 @@ public class FileSource implements InitializingBean, DisposableBean {
     public Connection getConnection() {
         return connection;
     }
+
+    public boolean useDocker() {
+        return this.useDocker;
+    }
+
 
     /**
      * Start up the connection to the Seaweedfs server
@@ -72,6 +79,12 @@ public class FileSource implements InitializingBean, DisposableBean {
             this.startup = true;
         }
     }
+
+    public void startup(boolean useDocker) throws IOException { 
+        this.useDocker = useDocker;
+        this.startup();
+    }
+    
 
     /**
      * Shutdown connect to the any Seaweedfs server

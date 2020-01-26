@@ -14,6 +14,7 @@ import org.ehcache.Cache;
 import org.ehcache.CacheManager;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.List;
 
 import static net.anumbrella.seaweedfs.core.Connection.LOOKUP_VOLUME_CACHE_ALIAS;
@@ -24,6 +25,9 @@ public class MasterWrapper {
     private Cache<Long, LookupVolumeResult> lookupVolumeCache;
     private ObjectMapper objectMapper = new ObjectMapper();
 
+    private boolean useDocker = false;
+    private FileSource fileSource;
+
     /**
      * Constructor.
      *
@@ -31,6 +35,18 @@ public class MasterWrapper {
      */
     public MasterWrapper(Connection connection) {
         this.connection = connection;
+        final CacheManager cacheManager = connection.getCacheManager();
+        if (cacheManager != null) {
+            this.lookupVolumeCache =
+                    cacheManager.getCache(LOOKUP_VOLUME_CACHE_ALIAS, Long.class, LookupVolumeResult.class);
+        }
+    }
+
+
+    public MasterWrapper(Connection connection, FileSource fileSource) {
+        this.connection = connection;
+        this.useDocker = fileSource.useDocker();
+        this.fileSource = fileSource;
         final CacheManager cacheManager = connection.getCacheManager();
         if (cacheManager != null) {
             this.lookupVolumeCache =
@@ -56,7 +72,25 @@ public class MasterWrapper {
         final String url = connection.getLeaderUrl() + RequestPathStrategy.assignFileKey + params.toUrlParams();
         HttpGet request = new HttpGet(url);
         JsonResponse jsonResponse = connection.fetchJsonResultByRequest(request);
-        return objectMapper.readValue(jsonResponse.json, AssignFileKeyResult.class);
+
+        AssignFileKeyResult afr = objectMapper.readValue(jsonResponse.json, AssignFileKeyResult.class);
+
+        if (this.useDocker) {
+            String _publicUrl = "http://" + this.fileSource.getHost() + ":" + new URL(afr.getPublicUrl()).getPort();
+            String _url = "http://" + this.fileSource.getHost() + ":" + new URL(afr.getUrl()).getPort();
+
+            afr.setPublicUrl(_publicUrl);
+            afr.setUrl(_url);
+
+            // System.err.println(_publicUrl);
+            // System.err.println(_url);
+            // System.err.println(new URL(afr.getPublicUrl()).getPort());
+            // System.err.println(new URL(afr.getUrl()).getPort());
+            // System.err.println(afr.getPublicUrl());
+            // System.err.println(afr.getPublicUrl());
+        }
+
+        return afr;
     }
 
 
